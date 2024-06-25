@@ -10,8 +10,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
+	"unicode"
 )
 
 type TemplateData struct {
@@ -19,14 +21,13 @@ type TemplateData struct {
 	PptxFile string
 }
 
-type Relationship struct {
-	ID     string `xml:"Id,attr"`
-	Target string `xml:"Target,attr"`
-}
-
-type Relationships struct {
-	XMLName      xml.Name       `xml:"Relationships"`
-	Relationship []Relationship `xml:"Relationship"`
+func removeControlCharacter(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsGraphic(r) {
+			return r
+		}
+		return -1
+	}, s)
 }
 
 func processSlides(files map[string][]byte, slidesPath, outputPath, url, pptxFile string) {
@@ -35,91 +36,79 @@ func processSlides(files map[string][]byte, slidesPath, outputPath, url, pptxFil
 	for name, data := range files {
 		if strings.HasPrefix(name, slidesPath) && strings.HasSuffix(name, ".xml") {
 			fmt.Printf("Found slide %s\n", name)
-			processSlide(name, data, files, imageMappings)
+			processSlide(filepath.Base(name), data, files, imageMappings)
 		}
 	}
 
 	generateOutput(outputPath, imageMappings, url, pptxFile)
 }
 
-func processSlide(name string, data []byte, files map[string][]byte, imageMappings map[string]string) {
-	type Pic struct {
-		CNvPr struct {
-			Descr string `xml:"descr,attr"`
-		} `xml:"nvPicPr>cNvPr"`
-		Blip struct {
-			Embed string `xml:"embed,attr"`
-		} `xml:"blipFill>blip"`
-	}
-
-	var pics struct {
-		Pic []Pic `xml:"pic"`
-	}
-
-	err := xml.Unmarshal(data, &pics)
-	if err != nil {
+func processSlide(slideFile string, data []byte, files map[string][]byte, imageMappings map[string]string) {
+	slide := &Slide{}
+	if err := xml.Unmarshal(data, slide); err != nil {
 		log.Fatal(err)
 	}
-	fmt.Printf("%v", &pics)
 
-	for _, pic := range pics.Pic {
-		name := cleanName(pic.CNvPr.Descr)
-		if name == "" {
+	names := []string{}
+	for _, sp := range slide.CSld.SpTree.Sps {
+		if sp.TxBody == nil {
 			continue
+		}
+		if sp.TxBody.P == nil {
+			continue
+		}
+		if sp.TxBody.P.Rs == nil {
+			continue
+		}
+		name := ""
+		for _, r := range sp.TxBody.P.Rs {
+			if r.T != "" {
+				name = name + " " + r.T
+			}
 		}
 		fmt.Println(name)
+		name = removeControlCharacter(strings.TrimSpace(name))
+		names = append(names, name)
 
-		rId := pic.Blip.Embed
-		image := findImage(name, rId, files)
-		if image == "" {
-			continue
-		}
+	}
+	sort.Slice(names, func(i, j int) bool { return len(names[i]) > len(names[j]) })
+	for _, pic := range slide.CSld.SpTree.Pics {
+		if pic.NvPicPr != nil && pic.NvPicPr.CNvPr != nil {
+			rId := pic.BlipFill.Blip.Embed
+			desc := removeControlCharacter(pic.NvPicPr.CNvPr.Descr)
 
-		if existing, ok := imageMappings[name]; ok && existing != image {
-			for i := 2; i <= 9; i++ {
-				newName := fmt.Sprintf("%s(%d)", name, i)
-				if _, ok := imageMappings[newName]; !ok {
-					imageMappings[newName] = image
-					break
+			name := ""
+			for _, x := range names {
+				if strings.Contains(desc, x) {
+					name = x
 				}
 			}
-		} else {
-			imageMappings[name] = image
+
+			fmt.Println("Name:", name)
+			fmt.Println("rId:", rId)
+			image := findImage(slideFile, rId, files)
+			if image == "" {
+				continue
+			}
+			fmt.Println("Image:", image)
+
+			if existing, ok := imageMappings[name]; ok && existing != image {
+				for i := 2; i <= 9; i++ {
+					newName := fmt.Sprintf("%s(%d)", name, i)
+					if _, ok := imageMappings[newName]; !ok {
+						imageMappings[newName] = image
+						break
+					}
+				}
+			} else {
+				imageMappings[name] = image
+			}
 		}
 	}
-}
-
-func cleanName(name string) string {
-	replacements := []struct {
-		old string
-		new string
-	}{
-		{" group.", ""},
-		{" Service icon.", ""},
-		{" service icon.", ""},
-		{" group icon.", ""},
-		{" instance icon for the Database category.", ""},
-		{" resource icon for", ""},
-		{" instance icon for", ""},
-		{" storage class icon for", ""},
-		{" standard category icon.", ""},
-		{"A representation of a", ""},
-		{".", ""},
-		{"&#10;", ""},
-		{"&amp;", "&"},
-		{"&#x2013;", "–"},
-	}
-
-	for _, r := range replacements {
-		name = strings.ReplaceAll(name, r.old, r.new)
-	}
-
-	name = strings.TrimSpace(name)
-	return name
 }
 
 func findImage(slide, rId string, files map[string][]byte) string {
-	relPath := slide + ".rels"
+	relPath := "ppt/slides/_rels/" + slide + ".rels"
 	relData, ok := files[relPath]
 	if !ok {
 		log.Printf("Relationship file not found for slide: %s", slide)
