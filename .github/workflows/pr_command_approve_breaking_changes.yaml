@@ -11,6 +11,17 @@ jobs:
     steps:
       - name: Checkout main
         uses: actions/checkout@v3
+        with:
+          ref: "${{ github.event.pull_request.merge_commit_sha }}"
+
+      - name: Checkout Pull Request
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL="${{ github.event.issue.pull_request.url }}"
+          PR_NUM=${PR_URL##*/}
+          echo "Checking out from PR #$PR_NUM based on URL: $PR_URL"
+          hub pr checkout $PR_NUM
 
       - name: Check the reason
         env:
