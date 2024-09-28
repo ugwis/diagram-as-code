@@ -54,7 +54,7 @@ jobs:
       - name: Overwrite example images
         id: staging
         run: |
-          find ./examples/ -name *.yaml | grep -v "-cfn.yaml" | xargs -I_ yq -i '.Diagram.DefinitionFiles[0].Type="LocalFile" | del(.Diagram.DefinitionFiles[0].Url) | .Diagram.DefinitionFiles[0].LocalFile="./definitions/definition-for-aws-icons-light.yaml"' _
+          find ./examples/ -name *.yaml | grep -v "cfn.yaml" | xargs -I_ yq -i '.Diagram.DefinitionFiles[0].Type="LocalFile" | del(.Diagram.DefinitionFiles[0].Url) | .Diagram.DefinitionFiles[0].LocalFile="./definitions/definition-for-aws-icons-light.yaml"' _
           find examples -type f -name "*.yaml" | while read yamlFile
           do
             pngFile=$(echo "$yamlFile" | sed 's/.yaml/.png/g')
@@ -78,6 +78,12 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git commit -m "bot: Overwrite example images by manual approval\n\nBREAKING CHNAGES: examples/*.png\n\nRefs: #${PR_NUMBER}"
+          git commit -F- <<EOS
+          bot: Overwrite example images by manual approval
+
+          BREAKING CHNAGES: examples/*.png
+
+          Refs: #${PR_NUMBER}"
+          EOS
           git push
           gh pr comment "${PR_NUMBER}" -b "Completed to overwrite ${{ steps.staging.outputs.CHANGES }} example images."
