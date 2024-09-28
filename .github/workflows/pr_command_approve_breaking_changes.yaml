@@ -58,7 +58,7 @@ jobs:
           find examples -type f -name "*.yaml" | while read yamlFile
           do
             pngFile=$(echo "$yamlFile" | sed 's/.yaml/.png/g')
-            if [[ "$yamlFile" =~ "*-cfn.yaml" ]]; then
+            if [[ "$yamlFile" =~ cfn.yaml$ ]]; then
               ./awsdac --cfn-template "$yamlFile" --dac-file
               yq -i '.Diagram.DefinitionFiles[0].Type="LocalFile" | del(.Diagram.DefinitionFiles[0].Url) | .Diagram.DefinitionFiles[0].LocalFile="./definitions/definition-for-aws-icons-light.yaml"' output.yaml
               ./awsdac --cfn-template "output.yaml" -o "$pngFile"
