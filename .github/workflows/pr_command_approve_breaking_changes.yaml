@@ -61,7 +61,7 @@ jobs:
             if [[ "$yamlFile" =~ cfn.yaml$ ]]; then
               ./awsdac --cfn-template "$yamlFile" --dac-file
               yq -i '.Diagram.DefinitionFiles[0].Type="LocalFile" | del(.Diagram.DefinitionFiles[0].Url) | .Diagram.DefinitionFiles[0].LocalFile="./definitions/definition-for-aws-icons-light.yaml"' output.yaml
-              ./awsdac --cfn-template "output.yaml" -o "$pngFile"
+              ./awsdac "output.yaml" -o "$pngFile"
             else
               ./awsdac "$yamlFile" -o "$pngFile"
             fi
