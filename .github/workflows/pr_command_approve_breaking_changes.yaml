@@ -64,6 +64,7 @@ jobs:
             fi
           done
           git add ./examples/*.png
+          git status
           echo "CHANGES=$(git diff --staged --name-only | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Push changes
