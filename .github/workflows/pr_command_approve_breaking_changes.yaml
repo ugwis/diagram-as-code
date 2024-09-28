@@ -52,6 +52,7 @@ jobs:
           go build -buildvcs=false -ldflags="-w" ./cmd/awsdac
 
       - name: Overwrite example images
+        id: staging
         run: |
           find ./examples/ -name *.yaml | xargs -I_ yq -i '.Diagram.DefinitionFiles[0].Type="LocalFile" | del(.Diagram.DefinitionFiles[0].Url) | .Diagram.DefinitionFiles[0].LocalFile="./definitions/definition-for-aws-icons-light.yaml"' _
           find examples -type f -name "*.yaml" | while read yamlFile
