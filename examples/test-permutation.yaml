@@ -1,0 +1,30 @@
+Diagram:
+  DefinitionFiles:
+    - Type: URL
+      Url: "https://raw.githubusercontent.com/awslabs/diagram-as-code/main/definitions/definition-for-aws-icons-light.yaml"
+    #- Type: LocalFile
+    #  LocalFile: ./definitions/definition-for-aws-icons-light.yaml
+
+  Resources:
+    Canvas:
+      Type: AWS::Diagram::Canvas
+      Direction: vertical
+      Children:
+        {{- range $i := seq 3}}
+        - User{{$i}}
+        {{- end}}
+    {{- range $i := seq 3}}
+    User{{$i}}:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Children:
+        {{- range $j := seq 3}}
+        - User{{$i}}Child{{$j}}
+        {{- end}}
+    {{- range $j := seq 3}}
+    User{{$i}}Child{{$j}}:
+      Type: AWS::Diagram::Resource
+      Preset: User
+      Title: {{$i}}-{{$j}}
+    {{- end}}
+    {{- end}}
