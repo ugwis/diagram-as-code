@@ -13,7 +13,8 @@ func TestResource(t *testing.T) {
 	r := new(Resource).Init()
 
 	// Test resource has not children
-	r.Scale(nil, nil)
+	zero := 0
+	r.Scale(nil, nil, &zero)
 	if r.GetBindings() != image.Rect(0, 0, 0, 0) {
 		t.Errorf("Init: expected bindings to be (0, 0, 0, 0), got %v", r.GetBindings())
 	}
@@ -31,7 +32,7 @@ func TestResource(t *testing.T) {
 	r2 := new(Resource).Init()
 	r3 := new(Resource).Init()
 	r2.AddChild(r3)
-	r2.Scale(nil, nil)
+	r2.Scale(nil, nil, &zero)
 	if r2.GetMargin() != (Margin{20, 15, 20, 15}) {
 		t.Errorf("Init: expected margin to be (30, 100, 30, 100), got %v", r2.GetMargin())
 	}
@@ -121,7 +122,6 @@ func TestResource(t *testing.T) {
 		t.Error("Draw: drawn should be true after drawing")
 	}
 }
-
 
 func TestResourceCycleDetection(t *testing.T) {
 	// Define test cases using a table-driven approach
@@ -324,10 +324,11 @@ func TestResourceCycleDetection(t *testing.T) {
 	}
 
 	// Run all test cases
+	zero := 0
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			root := tc.setupResources()
-			err := root.Scale(nil, nil)
+			err := root.Scale(nil, nil, &zero)
 
 			if tc.expectError && err == nil {
 				t.Error("Expected cycle detection error, but got nil")

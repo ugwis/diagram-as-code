@@ -9,6 +9,7 @@ import (
 	"image/color"
 	"image/png"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/awslabs/diagram-as-code/internal/cache"
@@ -45,24 +46,24 @@ type DefinitionFile struct {
 }
 
 type Resource struct {
-	Type           string           `yaml:"Type"`
-	Icon           string           `yaml:"Icon"`
+	Type           string            `yaml:"Type"`
+	Icon           string            `yaml:"Icon"`
 	IconFill       *ResourceIconFill `yaml:"IconFill"`
-	Direction      string           `yaml:"Direction"`
-	Preset         string           `yaml:"Preset"`
-	Align          string           `yaml:"Align"`
-	HeaderAlign    string           `yaml:"HeaderAlign"`
-	FillColor      string           `yaml:"FillColor"`
-	Title          string           `yaml:"Title"`
-	TitleColor     string           `yaml:"TitleColor"`
-	Font           string           `yaml:"Font"`
-	Children       []string         `yaml:"Children"`
-	BorderColor    string           `yaml:"BorderColor"`
-	BorderChildren []BorderChild    `yaml:"BorderChildren"`
+	Direction      string            `yaml:"Direction"`
+	Preset         string            `yaml:"Preset"`
+	Align          string            `yaml:"Align"`
+	HeaderAlign    string            `yaml:"HeaderAlign"`
+	FillColor      string            `yaml:"FillColor"`
+	Title          string            `yaml:"Title"`
+	TitleColor     string            `yaml:"TitleColor"`
+	Font           string            `yaml:"Font"`
+	Children       []string          `yaml:"Children"`
+	BorderColor    string            `yaml:"BorderColor"`
+	BorderChildren []BorderChild     `yaml:"BorderChildren"`
 }
 
 type ResourceIconFill struct {
-	Type *string `yaml:"Type"`
+	Type  *string `yaml:"Type"`
 	Color *string `yaml:"Color"`
 }
 
@@ -94,20 +95,21 @@ type LinkLabels struct {
 
 type LinkLabel struct {
 	Type  *string `yaml:"Type"`
-	Title string `yaml:"Title"`
+	Title string  `yaml:"Title"`
 	Color *string `yaml:"Color"`
 	Font  *string `yaml:"Font"`
 }
 
 type CreateOptions struct {
-	IsGoTemplate bool
+	IsGoTemplate    bool
 	OverrideDefFile string
 }
 
 func createDiagram(resources map[string]*types.Resource, outputfile *string) {
 
 	log.Info("--- Draw diagram ---")
-	err := resources["Canvas"].Scale(nil, nil)
+	k, _ := strconv.Atoi(os.Getenv("AWSDAC_KTH_PERMUTATION"))
+	err := resources["Canvas"].Scale(nil, nil, &k)
 	if err != nil {
 		log.Fatalf("Error scaling diagram: %v", err)
 	}
@@ -382,9 +384,9 @@ func convertLabel(label *LinkLabel) *types.LinkLabel {
 		switch *label.Type {
 		case "horizontal":
 			r.Type = types.LINK_LABEL_TYPE_HORIZONTAL
-		default: 
+		default:
 			r.Type = types.LINK_LABEL_TYPE_HORIZONTAL
-		}  
+		}
 	} else {
 		r.Type = types.LINK_LABEL_TYPE_HORIZONTAL
 	}
@@ -462,5 +464,3 @@ func IsURL(str string) bool {
 	}
 	return false
 }
-
-

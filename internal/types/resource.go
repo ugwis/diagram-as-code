@@ -24,12 +24,14 @@ import (
 const DEBUG_LAYOUT = false
 
 type BORDER_TYPE int
+
 const (
 	BORDER_TYPE_STRAIGHT BORDER_TYPE = iota
 	BORDER_TYPE_DASHED
 )
 
 type ICON_FILL_TYPE int
+
 const (
 	ICON_FILL_TYPE_NONE ICON_FILL_TYPE = iota
 	ICON_FILL_TYPE_RECT
@@ -51,6 +53,7 @@ type Resource struct {
 	direction      string
 	align          string
 	links          []*Link
+	childOrder     string // ordered(default) / unordered
 	children       []*Resource
 	borderChildren []*BorderChild
 	iconfill       ResourceIconFill
@@ -58,8 +61,8 @@ type Resource struct {
 }
 
 type ResourceIconFill struct {
-	Type           ICON_FILL_TYPE // none(default) / rect
-	Color          color.RGBA
+	Type  ICON_FILL_TYPE // none(default) / rect
+	Color color.RGBA
 }
 
 type BorderChild struct {
@@ -67,7 +70,7 @@ type BorderChild struct {
 	Resource *Resource
 }
 
-func defaultResourceValues(hasChild bool,setIcon bool) Resource {
+func defaultResourceValues(hasChild bool, setIcon bool) Resource {
 	if hasChild {
 		return Resource{ // resource has children and show as Group
 			bindings: &image.Rectangle{
@@ -108,8 +111,8 @@ func (r *Resource) Init() *Resource {
 	rr.bindings = nil
 	rr.iconImage = image.NewRGBA(image.Rect(0, 0, 0, 0))
 	rr.iconBounds = image.Rect(0, 0, 0, 0)
-	rr.iconfill = ResourceIconFill {
-		Type: ICON_FILL_TYPE_NONE,
+	rr.iconfill = ResourceIconFill{
+		Type:  ICON_FILL_TYPE_NONE,
 		Color: color.RGBA{255, 255, 255, 255},
 	}
 	rr.borderColor = nil
@@ -284,7 +287,14 @@ func (r *Resource) prepareFontFace(hasChild bool, parent *Resource) font.Face {
 	return truetype.NewFace(ft, &opt)
 }
 
-func (r *Resource) Scale(parent *Resource, visited map[*Resource]bool) error {
+type Score struct {
+	OverlapsBetweenLinks           int // Number of overlaps between links (intersections)
+	OverlapsBetweenLinkAndResource int // Number of overlaps between links and resources (intersections)
+	OverlapsBetweenLinkAndBorder   int // Number of overlaps between links and borders (intersections)
+	AspectRatio                    int // 0~100 Aspect ratio of scaled canvas
+}
+
+func (r *Resource) Scale(parent *Resource, visited map[*Resource]bool, k *int) error {
 	log.Infof("Scale %s", r.label)
 
 	if visited == nil {
@@ -318,7 +328,7 @@ func (r *Resource) Scale(parent *Resource, visited map[*Resource]bool) error {
 		texts := strings.Split(r.label, "\n")
 		for _, line := range texts {
 			textBindings, _ := font.BoundString(fontFace, line)
-			textWidth = max(textWidth, textBindings.Max.X.Floor() - textBindings.Min.X.Ceil() + 20)
+			textWidth = max(textWidth, textBindings.Max.X.Floor()-textBindings.Min.X.Ceil()+20)
 			textHeight += textBindings.Max.Y.Floor() - textBindings.Min.Y.Ceil() + 10
 		}
 	}
@@ -403,8 +413,18 @@ func (r *Resource) Scale(parent *Resource, visited map[*Resource]bool) error {
 		b = *prev.bindings
 	}
 
-	for _, subResource := range r.children {
-		err := subResource.Scale(parent, visited)
+	n := factorial(len(r.children))
+	shuffledChildren, err := getPermutationByIndex(*k%n, r.children)
+	if err != nil {
+		log.Fatalf("unexpected error for k=%d: %v", k, err)
+	}
+	for _, x := range shuffledChildren {
+		subResource, ok := x.(*Resource)
+		if !ok {
+			log.Fatal("failed to convert subResource")
+		}
+		*k /= n
+		err := subResource.Scale(parent, visited, k)
 		if err != nil {
 			return err
 		}
@@ -484,7 +504,7 @@ func (r *Resource) Scale(parent *Resource, visited map[*Resource]bool) error {
 		if err != nil {
 			panic(err)
 		}
-		err = borderChild.Resource.Scale(parent, visited) // to initialize default values
+		err = borderChild.Resource.Scale(parent, visited, k) // to initialize default values
 		if err != nil {
 			return err
 		}
