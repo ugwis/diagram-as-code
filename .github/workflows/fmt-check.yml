@@ -2,7 +2,6 @@ name: Go Format Check
 
 on:
   pull_request:
-    branches: [ main ]
     paths:
       - '**.go'
 
@@ -13,8 +12,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          ref: ${{ github.head_ref }}
+        # シンプルなチェックアウトにする（ref指定なし）
 
       - name: Setup Go
         uses: actions/setup-go@v4
